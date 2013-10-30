@@ -78,25 +78,46 @@ http {
       access_log   off;
     }
 
-    #location / {
-    #  # wordpress fancy rewrites
-    #  if (-f $request_filename) {
-    #    break;
-    #  }
-    #  if (-d $request_filename) {
-    #    break;
-    #  }
+   # enforce NO www
+    if ($host ~* ^www\.(.*))
+    {
+        set $host_without_www $1;
+        rewrite ^/(.*)$ $scheme://$host_without_www/$1 permanent;
+    }
+ 
+    # canonicalize codeigniter url end points
+    # if your default controller is something other than "welcome" you should change the following
+    if ($request_uri ~* ^(/welcome(/index)?|/index(.php)?)/?$)
+    {
+        rewrite ^(.*)$ / permanent;
+    }
+ 
+    # removes trailing "index" from all controllers
+    if ($request_uri ~* index/?$)
+    {
+        rewrite ^/(.*)/index/?$ /$1 permanent;
+    }
+ 
+    # removes trailing slashes (prevents SEO duplicate content issues)
+    if (!-d $request_filename)
+    {
+        rewrite ^/(.+)/$ /$1 permanent;
+    }
+ 
+    # removes access to "system" folder, also allows a "System.php" controller
+    if ($request_uri ~* ^/system)
+    {
+        rewrite ^/(.*)$ /index.php?/$1 last;
+        break;
+    }
+ 
+    # unless the request is for a valid file (image, js, css, etc.), send to bootstrap
+    if (!-e $request_filename)
+    {
+        rewrite ^/(.*)$ /index.php?/$1 last;
+        break;
+    }
 
-    #  rewrite         ^(.+)$ /index.php?q=$1 last;
-
-    #  # Add trailing slash to */wp-admin requests.
-    #  rewrite         /wp-admin$ $scheme://$host$uri/ permanent;
-
-    #  # redirect to feedburner.
-    #  # if ($http_user_agent !~ FeedBurner) {
-    #  #   rewrite ^/feed/?$ http://feeds.feedburner.com/feedburner-feed-id last;
-    #  # }
-    #}
 
     include /app/conf/nginx.d/*.conf;
 
